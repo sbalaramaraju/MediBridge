@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: emergencyCards
+    // Document ID: {cardId}
+    // Fields:
+    //   - userId: string (required) - Owner of the card
+    //   - createdAt: timestamp (required) - Creation time
+    //   - patientSummary: map (optional) - { age: string, conditions: list, medications: list }
+    //   - situation: string (required) - Likely situation classification
+    //   - actions: list (required) - Recommended immediate actions
+    //   - warnings: list (optional) - Red flag warnings
+    //   - rawInput: string (optional) - Original input text
+    //   - language: string (optional) - Detected language
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidCard(data) {
+      return data.userId is string &&
+             data.createdAt is timestamp &&
+             data.situation is string && data.situation.size() < 500 &&
+             data.actions is list && data.actions.size() <= 20;
+    }
+
+    match /emergencyCards/{cardId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId) && isValidCard(request.resource.data);
+      allow update: if isOwner(resource.data.userId) && 
+                      request.resource.data.userId == resource.data.userId &&
+                      isValidCard(request.resource.data);
+      allow delete: if isOwner(resource.data.userId);
+    }
+  }
+}

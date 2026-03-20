@@ -1,0 +1,8 @@
+{
+  "name": "MediBridge",
+  "description": "A Gemini-powered emergency medical context translator that converts unstructured data (voice, text, images) into structured Emergency Action Cards.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
