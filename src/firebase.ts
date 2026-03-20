@@ -1,11 +1,19 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, doc, getDocFromServer } from 'firebase/firestore';
+import { getAnalytics, logEvent } from 'firebase/analytics';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+
+export const logAppEvent = (eventName: string, params?: any) => {
+  if (analytics) {
+    logEvent(analytics, eventName, params);
+  }
+};
 
 // Error Handling Spec for Firestore Operations
 export enum FirestoreOperationType {

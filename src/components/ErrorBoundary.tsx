@@ -37,9 +37,9 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-teal-50 p-4 text-center">
+        <div role="alert" className="flex min-h-screen flex-col items-center justify-center bg-teal-50 p-4 text-center">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-red-100 text-red-600">
-            <AlertCircle className="h-10 w-10" />
+            <AlertCircle className="h-10 w-10" aria-hidden="true" />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-teal-900">Something went wrong</h1>
           <p className="mb-8 max-w-md text-teal-600/60">
@@ -47,9 +47,10 @@ class ErrorBoundary extends Component<Props, State> {
           </p>
           <button
             onClick={() => window.location.reload()}
+            aria-label="Reload the application"
             className="flex items-center gap-2 rounded-2xl bg-teal-900 px-8 py-3 font-bold text-white transition-all hover:bg-teal-800"
           >
-            <RefreshCw className="h-5 w-5" />
+            <RefreshCw className="h-5 w-5" aria-hidden="true" />
             Reload Application
           </button>
         </div>
