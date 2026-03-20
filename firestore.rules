@@ -4,20 +4,27 @@ service cloud.firestore {
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
+    //
     // Collection: emergencyCards
-    // Document ID: {cardId}
+    // Document ID: auto-generated
     // Fields:
-    //   - userId: string (required) - Owner of the card
-    //   - createdAt: timestamp (required) - Creation time
-    //   - patientSummary: map (optional) - { age: string, conditions: list, medications: list }
-    //   - situation: string (required) - Likely situation classification
-    //   - actions: list (required) - Recommended immediate actions
-    //   - warnings: list (optional) - Red flag warnings
-    //   - rawInput: string (optional) - Original input text
-    //   - language: string (optional) - Detected language
+    //   - userId: string (required, immutable) - The UID of the user who created the card.
+    //   - situation: string (required, max 200 chars) - Brief classification of the medical situation.
+    //   - patientSummary: map (required)
+    //     - age: string (required, max 50 chars)
+    //     - conditions: list of strings (required, max 50 items, each < 100 chars)
+    //     - medications: list of strings (required, max 50 items, each < 100 chars)
+    //   - actions: list of strings (required, max 20 items, each < 500 chars)
+    //   - warnings: list of strings (required, max 20 items, each < 500 chars)
+    //   - language: string (required, max 50 chars)
+    //   - createdAt: timestamp (required, server-assigned)
+    //   - rawInput: string (optional, max 5000 chars)
+    //
     // ===============================================================
 
+    // ===============================================================
     // Helper Functions
+    // ===============================================================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -26,20 +33,47 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isValidCard(data) {
-      return data.userId is string &&
-             data.createdAt is timestamp &&
-             data.situation is string && data.situation.size() < 500 &&
-             data.actions is list && data.actions.size() <= 20;
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
     }
+
+    function uidNotModified() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidCard(data) {
+      return hasRequiredFields(['userId', 'situation', 'patientSummary', 'actions', 'warnings', 'language', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.situation is string && data.situation.size() <= 200 &&
+             data.patientSummary is map &&
+             data.patientSummary.age is string && data.patientSummary.age.size() <= 50 &&
+             data.patientSummary.conditions is list && data.patientSummary.conditions.size() <= 50 &&
+             data.patientSummary.medications is list && data.patientSummary.medications.size() <= 50 &&
+             data.actions is list && data.actions.size() <= 20 &&
+             data.warnings is list && data.warnings.size() <= 20 &&
+             data.language is string && data.language.size() <= 50 &&
+             data.createdAt is timestamp &&
+             (!('rawInput' in data) || (data.rawInput is string && data.rawInput.size() <= 5000));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
 
     match /emergencyCards/{cardId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId) && isValidCard(request.resource.data);
-      allow update: if isOwner(resource.data.userId) && 
-                      request.resource.data.userId == resource.data.userId &&
-                      isValidCard(request.resource.data);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) && isValidCard(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId) && uidNotModified() && isValidCard(request.resource.data);
       allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
